@@ -1,0 +1,11 @@
+# Environments
+.venv
+.env
+env
+venv*
+
+# VSCode
+.vscode
+
+# jupyter
+.ipynb_checkpoints
