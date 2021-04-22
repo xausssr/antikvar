@@ -2,12 +2,8 @@ import os
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-from imgaug import augmenters as iaa
-from keras.applications import ResNet152V2
 from matplotlib import pylab as plt
 from PIL import Image
-from sklearn.model_selection import train_test_split
 from tensorflow import keras as keras
 
 PATH = os.path.realpath(__file__).split("nnmodule")[0]
