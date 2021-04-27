@@ -96,3 +96,61 @@ class NNSearch():
             list_of_graphs.append(save_graphs + f"{i}.jpg")
 
         return predicts[top], list_of_images, list_of_urls, list_of_graphs
+
+
+class InternetSearch():
+    
+    """
+    Поиск в рунете: создать объект InternetSearch, 
+    передать ему список url`ов в метод .search(...) -> словарь из совпадений по торговым площадкам
+    можно использовать много объектов распараллелить. 
+    Использовать как парсер, так и оперативную функцию в веб-морде
+    """
+
+    def __init__(self):
+        self.user = os.getlogin()
+        self.driver = webdriver.Chrome()
+
+    def yandex_images_search(self, img):
+    # идем на яндекс
+        self.driver.get("https://yandex.ru/images/search")
+        # нажимаем поиск по картинкам
+        search_button = self.driver.find_element_by_xpath("/html/body/header/div/div[1]/div[2]/form/div[1]/span/span/div[2]/button")
+        search_button.click()
+        # подсовываем url картинки
+        text_field = self.driver.find_element_by_xpath("/html/body/div[2]/div/div[1]/div/form[2]/span/span/input")
+        text_field.send_keys(img)
+        self.driver.find_element_by_xpath("/html/body/div[2]/div/div[1]/div/form[2]/button").click()
+        time.sleep(10)
+        #переходим в выдачу
+        links = self.driver.find_elements_by_class_name("other-sites__snippet-title")
+
+        if len(links) == 0:
+            return
+        
+        results = []
+        for site in links:
+            
+            results.append(site.find_elements_by_xpath(".//*")[0].get_attribute("href"))
+            
+        return results
+
+    def bad_urls_check(self, list_of_links):
+        result = []
+        for url in list_of_links:
+            if "avito" in url and "q=" not in url and "phone" not in url and "geo=" not in url:
+                    result.append(url)
+        return result
+
+    def yandex_batch_execute(self, urls, inplace=True):
+        result = {}
+        for img in urls:
+            if inplace:
+                result[img] = self.bad_urls_check(self.yandex_images_search(img, self.driver))
+            else:
+                result[img] = self.yandex_images_search(img, self.driver)
+            
+        return result
+
+    def search(self, images):
+        return self.yandex_batch_execute(images, inplace=True)
