@@ -115,11 +115,14 @@ class InternetSearch():
     Использовать как парсер, так и оперативную функцию в веб-морде
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.user = os.getlogin()
-        self.driver = webdriver.Chrome()
+        options = webdriver.ChromeOptions()
+        options.add_argument('--headless')
+        options.add_argument('--disable-gpu') 
+        self.driver = webdriver.Chrome(chrome_options=options)
 
-    def yandex_images_search(self, img):
+    def yandex_images_search(self, img:str) -> list:
     # идем на яндекс
         self.driver.get("https://yandex.ru/images/search")
         # нажимаем поиск по картинкам
@@ -143,7 +146,7 @@ class InternetSearch():
             
         return results
 
-    def bad_urls_check(self, list_of_links):
+    def bad_urls_check(self, list_of_links:list) -> list:
         result = []
         for url in list_of_links:
             if "avito" in url and "q=" not in url and "phone" not in url and "geo=" not in url:
@@ -152,7 +155,7 @@ class InternetSearch():
                 result.append(url)
         return result
 
-    def yandex_batch_execute(self, urls, inplace=True):
+    def yandex_batch_execute(self, urls:list, inplace:bool=True) -> dict:
         result = {}
         for img in urls:
             if inplace:
@@ -162,5 +165,5 @@ class InternetSearch():
             
         return result
 
-    def search(self, images):
+    def search(self, images:list) -> dict:
         return self.yandex_batch_execute(images, inplace=True)
