@@ -1,9 +1,17 @@
 import os
+import shutil
+import time
 
 import numpy as np
 import pandas as pd
+import requests
 from matplotlib import pylab as plt
 from PIL import Image
+from selenium import webdriver
+from selenium.common.exceptions import (ElementClickInterceptedException,
+                                        NoSuchElementException,
+                                        StaleElementReferenceException)
+from selenium.webdriver.common.keys import Keys
 from tensorflow import keras as keras
 
 PATH = os.path.realpath(__file__).split("nnmodule")[0]
@@ -139,16 +147,18 @@ class InternetSearch():
         result = []
         for url in list_of_links:
             if "avito" in url and "q=" not in url and "phone" not in url and "geo=" not in url:
-                    result.append(url)
+                result.append(url)
+            if "ideipodarkov" in url:
+                result.append(url)
         return result
 
     def yandex_batch_execute(self, urls, inplace=True):
         result = {}
         for img in urls:
             if inplace:
-                result[img] = self.bad_urls_check(self.yandex_images_search(img, self.driver))
+                result[img] = self.bad_urls_check(self.yandex_images_search(img))
             else:
-                result[img] = self.yandex_images_search(img, self.driver)
+                result[img] = self.yandex_images_search(img)
             
         return result
 
