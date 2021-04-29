@@ -13,7 +13,7 @@ def generate_random_images() -> dict:
 
     choice = np.random.randint(0, len(seacher.base), 8)
     images = {}
-    for i in range(1, 9):
+    for i in range(1, 7):
         images[f"i{i}"] = "/static/images_base/" + str(seacher.base.iloc[choice[i-1], 1]) + ".jpg"
 
     return images
@@ -21,7 +21,7 @@ def generate_random_images() -> dict:
 
 images = generate_random_images()
 
-@server.route('/result', methods=["GET"])
+@server.route('/result_our', methods=["GET"])
 def result():
     print(f"Нажата карусель {request.values.get('id')}")
     path_to_img = "C:/Users/GROM/PycharmProjects/Flask"
@@ -36,20 +36,34 @@ def result():
         answer[f"i2{ix}"] = "/static/temp/" + i.split("/")[-1]
 
     print(answer)
-    return render_template("result.html", images=images, answer=answer)
+    return render_template("result_our.html", images=images, answer=answer)
+
 
 @server.route('/')
 @server.route('/home')
 def index():
     return render_template("index.html", images=images)
 
+
 @server.route('/team')
 def team():
     return render_template("team.html")
 
+
 @server.route('/materials')
 def materials():
     return render_template("materials.html")
+
+
+@server.route('/statistics')
+def statistics():
+    return render_template("statistics.html")
+
+
+@server.route('/model_yandex')
+def model_yandex():
+    return render_template("model_yandex.html")
+
 
 if __name__ == '__main__':
     server.run(debug=True)

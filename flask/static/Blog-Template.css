@@ -105,6 +105,7 @@
   .u-section-1 .u-repeater-1 {
     min-height: 364px;
     grid-template-columns: repeat(3, calc(33.333333333333336% - 15px));
+    grid-auto-rows: NaN%;
   }
 }
 
