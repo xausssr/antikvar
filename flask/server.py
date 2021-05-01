@@ -1,4 +1,5 @@
 import datetime
+import os
 import random
 import ssl
 
@@ -7,10 +8,15 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly import offline
 from sqlalchemy import create_engine
+from werkzeug.utils import secure_filename
 
-from flask import Flask, redirect, render_template, request
+from flask import Flask, flash, redirect, render_template, request
 from nnmodule import InternetSearch as yas
 from nnmodule import NNSearch as nns
+from utills import *
+
+UPLOAD_FOLDER = '/antikvar/flask/static/uploads/'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 seacher = nns()
 yandex_seacher = yas()
@@ -20,6 +26,7 @@ with open("/antikvar/flask/credits") as f:
 engine = create_engine(f"postgresql+psycopg2://{login_str}@localhost/parsing")
 
 server = Flask(__name__)
+server.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 def generate_random_images() -> dict:
 
@@ -45,21 +52,40 @@ def before_request():
 @server.route('/result_our', methods=["GET"])
 def result():
     path_to_img = "/antikvar/flask/"
-    a,b,c,d = seacher.search(path_to_img + images[request.values.get('id')], n_top=5, save_graphs="/antikvar/flask/static/temp/", path_to_images="/antikvar/flask/static/images_base/")
-    answer = {"sample": images[request.values.get('id')]}
+    # КОСТЫЛЬ ПОКА ЧТО
+    if request.values.get('id') not in ["i1", "i2", "i3", "i4", "i5"]:
+        print("Загруженное фигачим!")
+        uploaded_name = UPLOAD_FOLDER + "/" + request.values.get('id')
+        a,b,c,d = seacher.search(uploaded_name, n_top=5, save_graphs="/antikvar/flask/static/temp/", path_to_images="/antikvar/flask/static/images_base/")
+        answer = {"sample": "static/uploads/" + request.values.get('id')}
+    else:
+        a,b,c,d = seacher.search(path_to_img + images[request.values.get('id')], n_top=5, save_graphs="/antikvar/flask/static/temp/", path_to_images="/antikvar/flask/static/images_base/")
+        answer = {"sample": images[request.values.get('id')]}
     for ix, i in enumerate(b):
         answer[f"i1{ix}"] = "/static/images_base/" + i + ".jpg"
 
     for ix, i in enumerate(d):
         answer[f"i2{ix}"] = "/static/temp/" + i.split("/")[-1]
 
-    print(answer)
     return render_template("result_our.html", answer=answer)
 
 
-@server.route('/')
-@server.route('/home')
+@server.route('/', methods=['GET', 'POST'])
+@server.route('/home', methods=['GET', 'POST'])
 def index():
+    if request.method == 'POST':
+        if 'image' not in request.files:
+            print("Лажа 1")
+            return redirect("home")
+        file = request.files['image']
+        if file.filename == '':
+            print("Лажа 2")
+            return redirect("home")
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(server.config['UPLOAD_FOLDER'], filename))
+            uploaded_name = process_uploaded_file(os.path.join(server.config['UPLOAD_FOLDER'], filename), engine)
+            return redirect(f"https://vasilisc.ru/result_our?id={uploaded_name.split('/')[-1]}")
     return render_template("index.html", images=images)
 
 
@@ -71,7 +97,6 @@ def team():
 @server.route('/materials')
 def materials():
     return render_template("materials.html")
-
 
 @server.route('/statistics')
 def statistics():
@@ -96,14 +121,20 @@ def statistics():
 
     return render_template("statistics.html", stat=stat)
 
-
 @server.route('/result_yandex', methods=["GET"])
 def result_yandex():
     # test
     #answer = {"sample": images[request.values.get('id')]}
     #result = yandex_seacher.search(images=["vasilisc.ru" + answer['sample']])
-    answer = {"sample": "https://03.img.avito.st/image/1/9k_QIrayWqbmi5ijsGWcAzaBWqBwg1g"}
-    result = yandex_seacher.search("https://03.img.avito.st/image/1/9k_QIrayWqbmi5ijsGWcAzaBWqBwg1g")
+    # КОСТЫЛЬ ПОКА ЧТО
+    if request.values.get('id') not in ["i1", "i2", "i3", "i4", "i5"]:
+        print("Загруженное фигачим!")
+        uploaded_name = "static/uploads/" + request.values.get('id')
+        answer = {"sample": uploaded_name}
+        result = yandex_seacher.search(uploaded_name)
+    else:
+        answer = {"sample": "https://03.img.avito.st/image/1/9k_QIrayWqbmi5ijsGWcAzaBWqBwg1g"}
+        result = yandex_seacher.search("https://03.img.avito.st/image/1/9k_QIrayWqbmi5ijsGWcAzaBWqBwg1g")
 
     for i in range(5):
         answer[f"url{i}"] = "home"
@@ -117,10 +148,26 @@ def result_yandex():
 
     return render_template("result_yandex.html", answer=answer)
 
-@server.route('/model_yandex')
+@server.route('/model_yandex', methods=['GET', 'POST'])
 def model_yandex():
+    if request.method == 'POST':
+        if 'image' not in request.files:
+            print("Лажа 1")
+            return redirect("home")
+        file = request.files['image']
+        if file.filename == '':
+            print("Лажа 2")
+            return redirect("home")
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file.save(os.path.join(server.config['UPLOAD_FOLDER'], filename))
+            uploaded_name = process_uploaded_file(os.path.join(server.config['UPLOAD_FOLDER'], filename), engine)
+            return redirect(f"https://vasilisc.ru/result_yandex?id={uploaded_name.split('/')[-1]}")
     return render_template("model_yandex.html", images=images)
 
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
 if __name__ == '__main__':
     
