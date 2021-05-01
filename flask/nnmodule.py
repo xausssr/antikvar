@@ -1,3 +1,4 @@
+import hashlib
 import os
 import shutil
 import time
@@ -12,6 +13,7 @@ from selenium.common.exceptions import (ElementClickInterceptedException,
                                         NoSuchElementException,
                                         StaleElementReferenceException)
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.firefox.options import Options
 from tensorflow import keras as keras
 
 PATH = os.path.realpath(__file__).split("nnmodule")[0]
@@ -19,7 +21,7 @@ PATH = os.path.realpath(__file__).split("nnmodule")[0]
 class NNSearch():
 
     def __init__(self):
-        self.flat_base = np.load(PATH + "res/flat_x_wo_aug.npy")
+        self.flat_base = np.load(PATH + "res/flat_x_wo_aug.npy", allow_pickle=True)
         
         # Загрузка ResNet50V2
         self.resnet = keras.models.Sequential()
@@ -42,7 +44,7 @@ class NNSearch():
         self.base = self.base[self.base['id'].isin(info_id)]
         self.base = self.base[~self.base["image"].str.contains("youtube")]
 
-    def search(self, image_path:str, n_top:int=5, save_graphs:str="C:/temp/", path_to_images:str="C:/Devs/git/antikvar/NeuralNetworks/images/", debug:bool=True) -> tuple:
+    def search(self, image_path:str, n_top:int=5, save_graphs:str="C:/temp/", path_to_images:str="C:/Devs/git/antikvar/NeuralNetworks/images/") -> tuple:
         """Ищет похожие изображения в базе
         Arguments:
             image_path: путь до изображения на диске
@@ -74,35 +76,15 @@ class NNSearch():
         list_of_urls = self.base.iloc[top, 2].to_list()
         list_of_graphs = []
 
-        if debug:
-            plt.rcParams.update({'font.size':14})
-            fig, ax = plt.subplots(2, 6, figsize=(15,8))
-            ax[0,0].imshow(Image.open(image_path))
-            ax[0,0].set_title("Исходное")
-            ax[0,0].set_axis_off()
-            for j, i in enumerate(range(1, 6)):
-                ax[0,i].imshow(Image.open(path_to_images + list_of_images[j] + ".jpg"))
-                ax[0,i].set_title("{:.2f}%".format(predicts[j]))
-                ax[0,i].set_axis_off()
-                
-            ax[1,0].scatter([x for x in range(self.flat_base.shape[-1])], flat_img)
-            ax[1,0].set_title("Исходное")
-            for j, i in enumerate(range(1, 6)):
-                ax[1,i].scatter([x for x in range(self.flat_base.shape[-1])], self.flat_base[top[j]])
-                ax[1,i].set_title("{:.2f}%".format(predicts[top[j]]))
-                ax[1,i].get_yaxis().set_visible(False)
-            plt.subplots_adjust(wspace=0.2, hspace=0.1)
-            plt.show()
-
+        img_name = hashlib.sha256(image_path.encode("utf-8")).hexdigest()
         for i in range(n_top):
             plt.rcParams.update({'font.size':14})
             plt.scatter([x for x in range(self.flat_base.shape[-1])], self.flat_base[top[i]])
-            plt.xlabel("Номер признака")
-            plt.ylabel("Активация")
-            plt.savefig(save_graphs + f"{i}.jpg")
+            plt.axis('off')
+            plt.savefig(save_graphs + img_name + f"{i}.jpg", bbox_inches='tight')
             plt.close()
-            list_of_graphs.append(save_graphs + f"{i}.jpg")
-
+            list_of_graphs.append(save_graphs + img_name + f"{i}.jpg")
+            
         return predicts[top], list_of_images, list_of_urls, list_of_graphs
 
 
@@ -117,10 +99,9 @@ class InternetSearch():
 
     def __init__(self) -> None:
         self.user = os.getlogin()
-        options = webdriver.ChromeOptions()
-        options.add_argument('--headless')
-        options.add_argument('--disable-gpu') 
-        self.driver = webdriver.Chrome(chrome_options=options)
+        options = Options()
+        options.headless = True
+        self.driver = webdriver.Firefox(options=options)
 
     def yandex_images_search(self, img:str) -> list:
     # идем на яндекс
@@ -135,23 +116,26 @@ class InternetSearch():
         time.sleep(10)
         #переходим в выдачу
         links = self.driver.find_elements_by_class_name("other-sites__snippet-title")
+        imgs = self.driver.find_elements_by_class_name("other-sites__preview-link")
 
         if len(links) == 0:
             return
         
         results = []
-        for site in links:
+        for (site, img) in zip(links, imgs):
             
-            results.append(site.find_elements_by_xpath(".//*")[0].get_attribute("href"))
+            results.append((site.find_elements_by_xpath(".//*")[0].get_attribute("href"), site.text, img.get_attribute("href")))
             
         return results
 
     def bad_urls_check(self, list_of_links:list) -> list:
         result = []
+        if list_of_links is None:
+            return result
         for url in list_of_links:
-            if "avito" in url and "q=" not in url and "phone" not in url and "geo=" not in url:
+            if "avito" in url[0] and "q=" not in url[0] and "phone" not in url[0] and "geo=" not in url[0]:
                 result.append(url)
-            if "ideipodarkov" in url:
+            if "ideipodarkov" in url[0]:
                 result.append(url)
         return result
 
@@ -165,5 +149,5 @@ class InternetSearch():
             
         return result
 
-    def search(self, images:list) -> dict:
-        return self.yandex_batch_execute(images, inplace=True)
+    def search(self, image:str) -> dict:
+        return self.bad_urls_check(self.yandex_images_search(image))
