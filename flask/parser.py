@@ -1,16 +1,22 @@
 import os
 import urllib.request
 from datetime import date
+from urllib import request
+
 import requests
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 from sqlalchemy import create_engine
-from urllib import request
-engine = create_engine("mysql+mysqldb://root:232061521161@localhost/parsing?charset=utf8mb4")
+
+with open("/antikvar/flask/credits") as f:
+    login_str = f.readline()[:-1]
+
+engine = create_engine(f"postgresql+psycopg2://{login_str}@localhost/parsing")
 HEADERS = {'user-agent': UserAgent().random}
 HOST = 'https://antikwariat.ru/'
 URL = 'https://antikwariat.ru'
-PATH = 'C:/Users/GROM/PycharmProjects/parse/'
+PATH = '/antikvar/flask/parse/'
+
 # URLS всех предметов
 urls_items = []
 def get_html(url):
@@ -19,8 +25,7 @@ def get_html(url):
 # Получаем URL всех категорий на сайте
 html = get_html(URL)
 if html.status_code != 200:
-    print('Error')
-    print(html.status_code)
+    print('Error', html.status_code)
 else:
     soup = BeautifulSoup(html.text, 'html.parser')
     soup = soup.find_all('div', class_='index-categories-item-title')
@@ -32,8 +37,7 @@ else:
     for url_category in urls_categories:
         html = get_html(url_category)
         if html.status_code != 200:
-            print('Error')
-            print(html.status_code)
+            print('Error', html.status_code)
         else:
             # получаем количество страниц
             pages_soup = BeautifulSoup(html.text, 'html.parser')
@@ -49,7 +53,7 @@ else:
                 x = []
                 for item in soup:
                     x.append(*item.find_all('a'))
-                id1 = engine.execute("select max(ID) from parsing.table1").fetchall()[0][0]
+                id1 = engine.execute("select max(ID) from main").fetchall()[0][0]
                 if id1 is None:
                     id1 = 0
                 else:
@@ -58,8 +62,7 @@ else:
                     url = k.attrs['href']
                     html = get_html(url)
                     if html.status_code != 200:
-                        print('ERROR')
-                        print(html.status_code)
+                        print('ERROR', html.status_code)
                     else:
                         images_path = []
                         soup = BeautifulSoup(html.text, 'html.parser')
@@ -73,27 +76,22 @@ else:
                             images_urls.append(z.attrs['data-zoom'])
                         if len(images_urls) == 0:
                             break
-                        search_str = f"select * from parsing.table1 where URL = '{url}' and description = '{description}' and category = '{name_category}'"
+                        search_str = f"select * from main where URL = '{url}' and description = '{description}' and category = '{name_category}'"
                         if len(engine.execute(search_str).fetchall()) == 0:
-                            os.mkdir(f'images/{id1}')
+                            os.mkdir(f'{PATH}/{id1}')
                             path_images = ''
                             schet = 0
                             for z in images_urls:
                                 count_images = len(images_urls)
                                 temp_name = z.replace("/", "_").replace(":", "_").replace(".", "_")
                                 resource = urllib.request.urlopen(z)
-                                out = open(f"images/{id1}/{temp_name}_{id1}_{schet}.jpg", 'wb')
+                                out = open(f"{PATH}/{id1}/{temp_name}_{id1}_{schet}.jpg", 'wb')
                                 out.write(resource.read())
                                 out.close()
-                                path_images += PATH + f"/images/{id1}/{temp_name}_{id1}_{schet}.jpg,"
+                                path_images += f"{PATH}/{id1}/{temp_name}_{id1}_{schet}.jpg,"
                                 schet += 1
                             id1 += 1
                             path_images = path_images[:-1]
-                            if len(path_images) == 0:
-                                path_images = " "
-                            print(path_images)
-
-                            #print(f"INSERT parsing.table1 (URL, description, category, path, date) VALUES ('{url}', '{description}', '{name_category}', '{path_images}', '{today.year}.{today.month}.{today.day}')")
-                            today = date.today()
-                            engine.execute(f"INSERT parsing.table1 (URL, description, category, path, count_images, date) VALUES ('{url}', '{description}', '{name_category}', '{path_images}', '{count_images}', '{today.year}.{today.month}.{today.day}')")
-
+                            if len(path_images) >= 1:
+                                today = date.today()
+                                engine.execute(f"INSERT INTO main (URL, description, category, path, count_images, date) VALUES ('{url}', '{description}', '{name_category}', '{path_images}', '{count_images}', '{today.year}.{today.month}.{today.day}')")
