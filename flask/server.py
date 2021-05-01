@@ -1,7 +1,12 @@
+import datetime
 import random
 import ssl
 
 import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+from plotly import offline
+from sqlalchemy import create_engine
 
 from flask import Flask, redirect, render_template, request
 from nnmodule import InternetSearch as yas
@@ -9,6 +14,10 @@ from nnmodule import NNSearch as nns
 
 seacher = nns()
 yandex_seacher = yas()
+
+with open("/antikvar/flask/credits") as f:
+    login_str = f.readline()[:-1]
+engine = create_engine(f"postgresql+psycopg2://{login_str}@localhost/parsing")
 
 server = Flask(__name__)
 
@@ -66,7 +75,26 @@ def materials():
 
 @server.route('/statistics')
 def statistics():
-    return render_template("statistics.html")
+    stat = {}
+    stat["obj"] = engine.execute("select max(ID) from main").fetchall()[0][0]
+    stat["img"] = engine.execute("select sum(count_images) from main").fetchall()[0][0]
+    for_graph = pd.read_sql_query('select * from main',con=engine)
+    for_graph["date"] = pd.to_datetime(for_graph["date"])
+    stat["day"] = len(for_graph[for_graph["date"].dt.date == datetime.datetime.now().date()])
+    for_graph = for_graph.groupby(pd.to_datetime(for_graph.date).dt.date).agg({'count_images': 'sum'}).reset_index()
+    fig = go.Figure([go.Scatter(x=for_graph["date"], y=for_graph['count_images'])])
+    fig.update_layout(
+        title=f"Динамика парсинга",
+        xaxis_title="Дата",
+        yaxis_title="Изображений",
+        font=dict(
+            family="Play",
+            size=12,
+        ),
+        )
+    stat["graph"] = offline.plot(fig, include_plotlyjs=False, output_type='div')
+
+    return render_template("statistics.html", stat=stat)
 
 
 @server.route('/result_yandex', methods=["GET"])
