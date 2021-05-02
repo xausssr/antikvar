@@ -120,30 +120,32 @@ def statistics():
 
 @server.route('/result_yandex', methods=["GET"])
 def result_yandex():
-    # test
-    #answer = {"sample": images[request.values.get('id')]}
-    #result = yandex_seacher.search(images=["vasilisc.ru" + answer['sample']])
-    # КОСТЫЛЬ ПОКА ЧТО
+
     if request.values.get('id') not in ["i1", "i2", "i3", "i4", "i5"]:
-        print("Загруженное фигачим!")
         uploaded_name = "static/uploads/" + request.values.get('id')
         answer = {"sample": uploaded_name}
         result = yandex_seacher.search(uploaded_name)
     else:
-        answer = {"sample": "https://03.img.avito.st/image/1/9k_QIrayWqbmi5ijsGWcAzaBWqBwg1g"}
-        result = yandex_seacher.search("https://03.img.avito.st/image/1/9k_QIrayWqbmi5ijsGWcAzaBWqBwg1g")
-
-    for i in range(5):
-        answer[f"url{i}"] = "home"
-        answer[f"name{i}"] = "Пустой"
-        answer[f"img{i}"] = "static/images/905318667-0.jpeg"
+        answer = {"sample": images[request.values.get('id')]}
+        result = yandex_seacher.search("vasilisc.ru" + answer['sample'])
 
     for idx, item in enumerate(result):
-        answer[f"name{idx}"] = item[1]
+        answer[f"name{idx}"] = item[1][:40] + "..."
         answer[f"url{idx}"] = item[0]
         answer[f"img{idx}"] = item[2]
 
-    return render_template("result_yandex.html", answer=answer)
+    if len(result) == 1:
+        render_template("yandex_res_1.html", answer=answer)
+    if len(result) == 2:
+        render_template("yandex_res_2.html", answer=answer)
+    if len(result) == 3:
+        render_template("yandex_res_3.html", answer=answer)
+    if len(result) == 4:
+        render_template("yandex_res_4.html", answer=answer)
+    if len(result) == 5:
+        render_template("yandex_res_5.html", answer=answer)
+
+    return render_template("yandex_res_none.html")
 
 @server.route('/model_yandex', methods=['GET', 'POST'])
 def model_yandex():
