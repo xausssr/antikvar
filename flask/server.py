@@ -37,7 +37,6 @@ def generate_random_images() -> dict:
 
     return images
 
-
 images = generate_random_images()
 
 @server.before_request
@@ -69,7 +68,6 @@ def result():
 
     return render_template("result_our.html", answer=answer)
 
-
 @server.route('/', methods=['GET', 'POST'])
 @server.route('/home', methods=['GET', 'POST'])
 def index():
@@ -88,11 +86,9 @@ def index():
             return redirect(f"https://vasilisc.ru/result_our?id={uploaded_name.split('/')[-1]}")
     return render_template("index.html", images=images)
 
-
 @server.route('/team')
 def team():
     return render_template("team.html")
-
 
 @server.route('/materials')
 def materials():
@@ -107,6 +103,7 @@ def statistics():
     for_graph["date"] = pd.to_datetime(for_graph["date"])
     stat["day"] = len(for_graph[for_graph["date"].dt.date == datetime.datetime.now().date()])
     for_graph = for_graph.groupby(pd.to_datetime(for_graph.date).dt.date).agg({'count_images': 'sum'}).reset_index()
+    stat["uploads"] = engine.execute("select count(*) from uploads").fetchall()[0][0]
     fig = go.Figure([go.Scatter(x=for_graph["date"], y=for_graph['count_images'])])
     fig.update_layout(
         title=f"Динамика парсинга",
